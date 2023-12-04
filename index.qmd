@@ -4,9 +4,10 @@ format:
   dashboard:
     orientation: columns
     theme: [litera, custom.scss]
+    nav-buttons: [github]
+    github: https://github.com/CozminaSecula/dashboard
 execute: 
   echo: false
-
 ---
 
 # About
@@ -27,47 +28,43 @@ How can the company enhance its compensation strategy to ensure fair and effecti
 
 ✅ To understand compensation differences across various factors by segmenting employees' data available into different groups such as roles, departments, experience, and demographic groups.
 
- -   This may help to inform the development of a fair and effective compensation strategy.
+-   This may help to inform the development of a fair and effective compensation strategy.
 
- -   A fair and effective compensation strategy can help attract and retain top talent, improve employee morale and motivation, and ultimately drive business success.
+-   A fair and effective compensation strategy can help attract and retain top talent, improve employee morale and motivation, and ultimately drive business success.
 
 ✅ To develop a tailor-made dashboard that allows to personalize the reporting based on specific needs of stakeholders instead of having a generic dashboard for everyone.
 
- -  This can help to focus on specific groups, characteristics, traits and bring to the foreground what interested people should focus on, what matters and what to do about it.
+-   This can help to focus on specific groups, characteristics, and factors and bring to attention what interested people should focus on, what matters, and what to do about it.
 
 **Research Questions**
 
- -   How did the last salary increase vary across departments, roles, experience levels, generations, and genders?
+-   How did the last salary increase vary across departments, roles, experience levels, generations, and genders?
 
- -   How is compensation distributed across different departments, roles, experience levels, generations, and genders?
+-   How is compensation distributed across different departments, roles, experience levels, generations, and genders?
 
- -   How does compensation compare across different departments, roles, experience levels, generations, and genders?
+-   How does compensation compare across different departments, roles, experience levels, generations, and genders?
 
 **Specifics**
 
- -  This project utilized open-source data for analysis and answering the questions.
+-   This project utilized open-source data for analysis and answering the questions.
 
- -  I performed a descriptive analysis to explore and compare compensation differences across various factors.
+-   I performed a descriptive analysis to explore and compare compensation differences across various factors.
 
 **Data collection**
 
- -  Data is sourced from the book : [The Fundamentals of People Analytics With Applications in R](https://link.springer.com/book/10.1007/978-3-031-28674-2)
+-   Data is sourced from the book: [The Fundamentals of People Analytics With Applications in R](https://link.springer.com/book/10.1007/978-3-031-28674-2)
 
 **Packages**
 
- -  Dashboard interface - this dashboard is built with [Quarto Dashboards](https://quarto.org/docs/dashboards/).
+-   Dashboard interface - this dashboard is built with [Quarto Dashboards](https://quarto.org/docs/dashboards/).
 
- -  Data source - the [peopleanalytics](https://link.springer.com/book/10.1007/978-3-031-28674-2) package
+-   Data source - the [peopleanalytics](https://link.springer.com/book/10.1007/978-3-031-28674-2) package
 
- -  Visualization - the [ggplot](https://ggplot2.tidyverse.org/) and the [plotly](https://plotly.com/ggplot2/) package for the plots
+-   Visualization - the [ggplot](https://ggplot2.tidyverse.org/) and the [plotly](https://plotly.com/ggplot2/) package for the plots
 
- -  Data manipulation - the [tidyverse](https://www.tidyverse.org/packages/) package
+-   Data manipulation - the [tidyverse](https://www.tidyverse.org/packages/) package
 
- -  Tables - the [DT](https://rstudio.github.io/DT/) package
-
-**Deployment and reproducibly**
-
- -  Dashboard [repository](https://github.com/CozminaSecula/flexdashboard).
+-   Tables - the [DT](https://rstudio.github.io/DT/) package
 
 For any question or feedback, you can contact me on [Linkedin](https://www.linkedin.com/in/cozminasecula/).
 :::
