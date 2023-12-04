@@ -1,0 +1,1225 @@
+---
+title: "Compensation Dashboard"
+format: 
+  dashboard:
+    orientation: columns
+    theme: [litera, custom.scss]
+execute: 
+  echo: false
+code-link: true
+---
+
+# About
+
+::: card
+::: card-header
+About the project
+:::
+
+::: card-body
+**Scenario**
+
+Imagine a company with a diverse workforce and a wide range of products and services. The company aims to enhance its compensation strategy to ensure all employees receive fair and effective compensation. However, the company lacks updated information on potential disparities in its current compensation.
+
+How can the company enhance its compensation strategy to ensure fair and effective compensation for all employees, given that it lacks updated information on potential disparities in its current compensation strategy?
+
+**Aim of this project**
+
+✅ To understand compensation differences across various factors by segmenting employees' data available into different groups such as roles, departments, experience, and demographic groups.
+
+ -   This may help to inform the development of a fair and effective compensation strategy.
+
+ -   A fair and effective compensation strategy can help attract and retain top talent, improve employee morale and motivation, and ultimately drive business success.
+
+✅ To develop a tailor-made dashboard that allows to personalize the reporting based on specific needs of stakeholders instead of having a generic dashboard for everyone.
+
+ -  This can help to focus on specific groups, characteristics, traits and bring to the foreground what interested people should focus on, what matters and what to do about it.
+
+**Research Questions**
+
+ -   How did the last salary increase vary across departments, roles, experience levels, generations, and genders?
+
+ -   How is compensation distributed across different departments, roles, experience levels, generations, and genders?
+
+ -   How does compensation compare across different departments, roles, experience levels, generations, and genders?
+
+**Specifics**
+
+ -  This project utilized open-source data for analysis and answering the questions.
+
+ -  I performed a descriptive analysis to explore and compare compensation differences across various factors.
+
+**Data collection**
+
+ -  Data is sourced from the book : [The Fundamentals of People Analytics With Applications in R](https://link.springer.com/book/10.1007/978-3-031-28674-2)
+
+**Packages**
+
+ -  Dashboard interface - this dashboard is built with [Quarto Dashboards](https://quarto.org/docs/dashboards/).
+
+ -  Data source - the [peopleanalytics](https://link.springer.com/book/10.1007/978-3-031-28674-2) package
+
+ -  Visualization - the [ggplot](https://ggplot2.tidyverse.org/) and the [plotly](https://plotly.com/ggplot2/) package for the plots
+
+ -  Data manipulation - the [tidyverse](https://www.tidyverse.org/packages/) package
+
+ -  Tables - the [DT](https://rstudio.github.io/DT/) package
+
+**Deployment and reproducibly**
+
+ -  Dashboard [repository](https://github.com/CozminaSecula/flexdashboard).
+
+For any question or feedback, you can contact me on [Linkedin](https://www.linkedin.com/in/cozminasecula/).
+:::
+:::
+
+# Data
+
+```{r}
+#| label: load-packages
+#| message: false
+
+library(skimr)
+library(tidyverse)
+library(peopleanalytics)
+library(DT)
+library(ggtext)
+library(scales)
+library(patchwork)
+library(plotly)
+
+
+```
+
+## Data Set {height="70%"}
+
+```{r}
+#| title: Data Set
+
+
+data("employees")
+peopleanalytics::employees|>
+      DT::datatable((options = list(dom = 'ftp', paging = TRUE)), filter = "top")
+
+```
+
+## Column
+
+### Data Summary {.tabset}
+
+```{r}
+#| title: Data Summary
+
+
+employees|>
+  skimr::skim()|>
+  DT::datatable((options = list(dom = 'ftp', paging = TRUE)))
+
+
+```
+
+```{r}
+#| title: Summary Statistics
+
+employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_title)|>
+  summarise(
+            Mean= round(mean(annual_comp, na.rm = TRUE),2),
+            Median= round(median(annual_comp, na.rm = TRUE),2),
+            Sd.Dev = round(sd(annual_comp, na.rm = TRUE)),
+            Count=sum(!is.na(annual_comp)))|>
+  DT::datatable(options = list(dom = 'ftp', paging = TRUE), filter = "top")
+```
+
+### Variables of Interest
+
+::: {.card title="Variables of Interest"}
+| Variable of interest | Variable Name (data set) | Description of Variable                                                                                                                                              | Data type   |
+|------------------|------------------|-------------------|------------------|
+| Compensation         | annual_comp              | Hourly rate \* 2080                                                                                                                                                  | Continuous  |
+| Role                 | job_title                | Job title                                                                                                                                                            | Categorical |
+| Department           | dept                     | Department of which an employee is a member                                                                                                                          | Categorical |
+| Experience           | job_lvl                  | Job level, where 1 = Junior and 5 = Senior                                                                                                                           | Categorical |
+| Salary Increase      | salary_hike_pct          | The percent increase in salary for the employee's most recent compensation adjustment (whether due to a standard merit increase, off-cycle adjustment, or promotion) | Continuous  |
+| Age                  | age                      | Employee age in years                                                                                                                                                | Continuous  |
+| Gender               | gender                   | Gender self-identification                                                                                                                                           | Categorical |
+:::
+
+```{r}
+#| label: Data Preparation
+#| results: false
+
+
+## **Compensation**: Create a new variable (based on existing variable "annual_comp") with 4 interval values for compensation ("annual_interval"):"62.4k-100k","100K-150k","150K-200K","200k-208K"
+min(employees$annual_comp) #min value for annual compensation
+max(employees$annual_comp) #max value for annual compensation
+
+
+employees <- employees |>
+  filter(active == "Yes") |>
+  mutate(annual_interval = case_when(
+    annual_comp < 100000 ~ "62.4k-100k",
+    annual_comp >= 100000 & annual_comp < 150000 ~ "100K-150K",
+    annual_comp >= 150000 & annual_comp < 200000 ~ "150K-200K",
+    annual_comp >= 200000 & annual_comp <= 208000 ~ "200k-208K",
+    annual_comp > 208000 ~ "Over 208k"
+      ))
+
+comp_value <- c(50000, 100000, 150000, 200000, Inf)
+comp_interval <- c("62.4k-100k","100K-150k","150K-200K","200k-208K")
+employees <- employees|>
+  mutate(annual_interval=cut(annual_comp, ordered = TRUE,
+                           breaks = comp_value,
+                           labels = comp_interval))
+
+
+levels(employees$annual_interval)
+
+## **Experience**: Convert "job_lvl" variable from numeric to a factor with 5 categories: "Junior","Intermediate","Experienced","Expert","Senior".
+
+employees|>
+  distinct(job_lvl)  ## check the levels for experience (job_lvl) variable
+
+## Converting job_lvl from numeric to a factor 
+
+employees <- employees|>
+  mutate(job_level= factor(job_lvl, ordered = TRUE,
+                              levels=c(1:5),
+                              labels=c("Junior","Intermediate","Experienced","Expert","Senior")))
+levels(employees$job_level)
+
+## **Salary Increase**: Create a new variable (based on existing variable "salary_hike_pct") with 3 interval values for salary increase ("salary_increase_interval"): "11%-15%","15%-20%","20%-25%"
+
+min(employees$salary_hike_pct) ## min value for last salary increase
+max(employees$salary_hike_pct) ## max value for last salary increase
+
+## Create a new variable with interval values for salary increase 
+
+employees <- employees |>
+    filter(active== "Yes")|>
+    mutate(salary_increase_interval = case_when(
+    salary_hike_pct >=11 & salary_hike_pct <15 ~ "11%-15%",
+    salary_hike_pct >=15 & salary_hike_pct <20 ~ "15%-20%",
+    salary_hike_pct >=20 & work_exp <25 ~ "20%-25%",
+    salary_hike_pct > 25 ~ "Over 25%"
+          ))
+
+Salary_increase_value <- c(11, 15, 20, Inf)
+salary_increase_levels <- c("11%-15%","15%-20%","20%-25%")
+
+employees <- employees|>
+  mutate(salary_increase_interval=cut(salary_hike_pct, ordered = TRUE,
+                           breaks = Salary_increase_value,
+                           labels = salary_increase_levels,
+                           include.lowest = 11))
+
+
+employees|>
+  distinct(salary_increase_interval)
+
+## Create a new variable generation based on employees' age.
+
+min(employees$age) #min value for age variable
+max(employees$age) #max value for age variable
+
+
+determine_generation <- function(age) {
+  case_when(
+    age >= 18 & age <= 24 ~ "Generation Z",
+    age >= 25 & age <= 40 ~ "Millennial",
+    age >= 41 & age <= 56 ~ "Generation X",
+    age >= 57 & age <= 60 ~ "Baby Boomers",
+    TRUE ~ "Age not in range"
+  )
+}
+
+employees <- employees|>
+  mutate(generation= determine_generation(age))
+
+employees|>
+  distinct(generation)|>
+  datatable()
+
+# Define the order of the levels
+
+generation_cohort <- c("Generation Z", "Millennial", "Generation X", "Baby Boomers", "Age not in range")
+
+# Convert the 'generation' variable to a factor and specify the order of the levels
+
+employees$generation <- factor(employees$generation, levels = generation_cohort)
+
+
+```
+
+```{r}
+#| label: Graphs
+#| results: false
+
+
+## Last Salary Increase
+
+### No of Employees By Department and Role
+
+
+dept_role <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_title)|>
+  summarise(Cnt=n())
+ 
+
+dept_role$highlight <- dept_role$Cnt %in% sort(unique(dept_role$Cnt), decreasing = TRUE)[1:2]
+
+fig_empl_dept <- ggplot(dept_role, aes(x=reorder(job_title, Cnt), y=Cnt))+
+  geom_bar(aes(fill=highlight), stat = "identity", position = "dodge", width = 0.9)+
+  scale_fill_manual(values = c("TRUE" = "#414040", "FALSE"= "#BFBEBE"))+
+  geom_text(aes(label=Cnt), hjust=-0.12, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size = 14))+
+        labs(x= "",
+             title = "**Sales Executives** form the largest group of employees in the company.They are closely followed by **Research Scientists**. <br />",
+            subtitle = "The number of employees by Department and Roles",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+
+### No of Employees by Experience Level
+
+dept_exper <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_level)|>
+  summarise(Cnt=n())
+ 
+# By Experience
+
+dept_exper$highlight <- dept_exper$Cnt %in% sort(unique(dept_exper$Cnt), decreasing = TRUE)[1:2]
+
+fig_empl_dept_exper <- ggplot(dept_exper, aes(x=job_level, y=Cnt))+
+  geom_bar(aes(fill=highlight), stat = "identity", position = "dodge", width = 0.9)+
+  scale_fill_manual(values = c("TRUE" = "#414040", "FALSE"= "#BFBEBE"))+
+  geom_text(aes(label=Cnt), hjust=-0.12, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size = 14))+
+        labs(x= "",
+             title = "Most employees, 71.5%, fall into the **junior and intermediate** levels of experience, with the **highest number in the Research and Development department.** <br />",
+            subtitle = "The number of employees by Department and Experience Level",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+### No of Employees by generation
+
+dept_generation <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, generation)|>
+  summarise(Cnt=n())
+ 
+# By Generation
+
+dept_generation$highlight <- dept_generation$Cnt %in% sort(unique(dept_generation$Cnt), decreasing = TRUE)[1:2]
+
+fig_empl_dept_generation <- ggplot(dept_generation, aes(x=generation, y=Cnt))+
+  geom_bar(aes(fill=highlight), stat = "identity", position = "dodge", width = 0.9)+
+  scale_fill_manual(values = c("TRUE" = "#414040", "FALSE"= "#BFBEBE"))+
+  geom_text(aes(label=Cnt), hjust=-0.12, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size=14))+
+        labs(x= "",
+             title = "Most employees, 62%, fall into the **millennial** generation, with the **highest number in the Research and Development department.** <br />",
+            subtitle = "The number of employees by Department and Generation",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+### No of Employees by gender
+
+dept_gender <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, gender)|>
+  summarise(Cnt=n())
+ 
+# By Gender
+
+dept_gender$highlight <- dept_gender$Cnt %in% sort(unique(dept_gender$Cnt), decreasing = TRUE)[1:2]
+
+fig_empl_dept_gender <- ggplot(dept_gender, aes(x=gender, y=Cnt))+
+  geom_bar(aes(fill=highlight), stat = "identity", position = "dodge", width = 0.9)+
+  scale_fill_manual(values = c("TRUE" = "#414040", "FALSE"= "#BFBEBE"))+
+  geom_text(aes(label=Cnt), hjust=-0.12, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size = 14))+
+        labs(x= "",
+             title = "59% of employees are males and 41% are females. <br />",
+            subtitle = "The number of employees by Department and Generation",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## Last Salary Increase
+
+## By Department
+
+dept_salary_increase_n <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, salary_increase_interval)|>
+  summarise(Count= n())|>
+  mutate(prtc=round(Count/sum(Count)*100,2))
+
+# Create a new variable 'highlight' that is TRUE when 'prtc' is max and FALSE otherwise
+
+dept_salary_increase_n$highlight <- dept_salary_increase_n$prtc == max(dept_salary_increase_n$prtc)
+
+fig_sal_incr_dept <- ggplot(dept_salary_increase_n, aes(x=dept, y=prtc))+
+  geom_bar(aes(fill= highlight), stat = "identity", position = "dodge",width = 0.6)+
+  scale_fill_manual(values = c("TRUE" = "#414040", "FALSE"= "#BFBEBE"))+
+  geom_text(aes(label=prtc), vjust=-0.5, size=5)+
+  facet_grid(~salary_increase_interval)+
+  scale_y_continuous(labels = percent_format(scale = 1))+
+  scale_x_discrete(labels=label_wrap(10))+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        strip.text.x = element_text(face = "bold", size = 14))+
+  labs(x=NULL,
+       y="Percentage Increase",
+       title = "The **Sales department** had the highest percentage of employees receiving salary increases. <br />",
+       subtitle = "% of Last Salary Increase by Department and Interval Increase")
+
+## By Role
+
+role_salary_increase_n <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_title, salary_increase_interval)|>
+  summarise(Count= n())|>
+  mutate(prtc=round(Count/sum(Count)*100),
+         prtc = ifelse(row_number() == n(), 100 - sum(prtc[-n()]), prtc))
+
+# Define the order of the legend
+
+color <- c("20%-25%"= "#BFBEBE" ,"15%-20%"="#929497","11%-15%" = "#E5E5E5")
+levels <- c("20%-25%", "15%-20%", "11%-15%")
+
+# Custom label function
+
+percent_label <- function(x) {
+  paste0(x, "%")
+}
+
+fig_sal_incr_role <- ggplot(role_salary_increase_n, aes(x=prtc, y=job_title, fill=salary_increase_interval))+
+  geom_bar(position = "stack", stat = "identity")+
+  scale_fill_manual(values = color, breaks= levels) +
+  scale_x_continuous(labels = percent_label)+
+  geom_text(aes(label=prtc),position = position_stack(vjust = 0.6), vjust= 0.5, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "top", legend.justification = "left", legend.text = element_text(size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
+        strip.text.x = element_text(face = "bold"),
+        strip.text.y = element_text(size = 14),
+        axis.title.x = element_text(hjust = 0, size = 14),
+        legend.title = element_text(hjust = 0))+
+    labs(y="Role",
+         x="Percent of Total",
+         title ="% of Last Salary Increase by Role and Interval Increase",
+         fill= "Salary Increase Interval")+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## By Experience Levels
+
+experience_salary_increase_n <- employees|>
+  group_by(dept, job_level, salary_increase_interval)|>
+  summarise(Count= n())|>
+  mutate(prtc=round(Count/sum(Count)*100),
+         prtc = ifelse(row_number() == n(), 100 - sum(prtc[-n()]), prtc))
+
+fig_sal_incr_exp <- ggplot(experience_salary_increase_n, aes(x=prtc, y=job_level, fill=salary_increase_interval))+
+  geom_bar(position = "stack", stat = "identity", width = 0.9)+
+  scale_fill_manual(values = color, breaks= levels) +
+  scale_x_continuous(labels = percent_label)+
+  geom_text(aes(label=prtc),position = position_stack(vjust = 0.6), vjust= 0.5, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "top", legend.justification = "left", legend.text = element_text(size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
+        strip.text.x = element_text(face = "bold"),
+        strip.text.y = element_text(size = 14),
+        axis.title.x = element_text(hjust = 0, size = 14),
+        legend.title = element_text(hjust = 0))+
+    labs(y="Experience Level",
+         x="Percent of Total",
+         title ="% of Last Salary Increase by Experience Level and Interval Increase",
+         fill= "Salary Increase Interval")+
+    facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## By Generation
+
+generation_salary_increase_n <- employees|>
+  group_by(dept,generation, salary_increase_interval)|>
+  summarise(Count= n())|>
+  mutate(prtc=round(Count/sum(Count)*100),
+         prtc = ifelse(row_number() == n(), 100 - sum(prtc[-n()]), prtc))
+
+fig_sal_incr_generation <- ggplot(generation_salary_increase_n, aes(x=prtc, y=generation, fill=salary_increase_interval))+
+  geom_bar(position = "stack", stat = "identity", width = 0.9)+
+  scale_fill_manual(values = color, breaks= levels) +
+  scale_x_continuous(labels = percent_label)+
+  geom_text(aes(label=prtc),position = position_stack(vjust = 0.6), vjust= 0.5, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "top", legend.justification = "left", legend.text = element_text(size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
+        strip.text.x = element_text(face = "bold"),
+        strip.text.y = element_text(size = 14),
+        axis.title.x = element_text(hjust = 0, size = 14),
+        legend.title = element_text(hjust = 0))+
+    labs(y="Generation",
+         x="Percent of Total",
+         title ="% of Last Salary Increase by Generation and Interval Increase",
+         fill= "Salary Increase Interval")+
+    facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## By Gender
+
+gender_salary_increase_n <- employees|>
+  group_by(dept, gender, salary_increase_interval)|>
+  summarise(Count= n())|>
+  mutate(prtc=round(Count/sum(Count)*100),
+         prtc = ifelse(row_number() == n(), 100 - sum(prtc[-n()]), prtc))
+
+fig_sal_incr_gender <- ggplot(gender_salary_increase_n, aes(x=prtc, y=gender, fill=salary_increase_interval))+
+  geom_bar(position = "stack", stat = "identity")+
+  scale_fill_manual(values = color, breaks= levels) +
+  scale_x_continuous(labels = percent_label)+
+  geom_text(aes(label=prtc),position = position_stack(vjust = 0.6), vjust= 0.5, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "top", legend.justification = "left", legend.text = element_text(size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
+        strip.text.x = element_text(face = "bold"),
+        strip.text.y = element_text(size = 14),
+        axis.title.x = element_text(hjust = 0, size = 14),
+        legend.title = element_text(hjust = 0))+
+    labs(y="Gender",
+         x="Percent of Total",
+         title ="% of Last Salary Increase by Gender and Interval Increase",
+         fill= "Salary Increase Interval")+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## Distribution of Compensation
+
+fig_comp_distr_hist <- ggplot(employees|>filter(active=="Yes"), aes(x=annual_comp))+
+  geom_histogram(binwidth = 5000, fill = "#E5E5E5", color="#231F20")+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "top", legend.justification = "left",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
+        strip.text.x = element_text(face = "bold"), 
+        axis.title.x = element_text(hjust = 0, size = 16),
+        axis.title.y = element_text(vjust = 0, size = 16),
+        legend.title = element_text(hjust = 0))+
+  labs(title="",
+       x= "Compensation",
+       y= "Frequency")
+
+
+## Numbers of Employees By Compensation Intervals
+
+data_annual_interval <- employees|>
+  filter(active=="Yes")|>
+  group_by(annual_interval)|>
+  summarise(Cnt=n())
+
+data_annual_interval$annual_interval <- reorder(data_annual_interval$annual_interval, -data_annual_interval$Cnt)
+
+fig_comp_distb <- ggplot(data_annual_interval, aes(y=reorder(annual_interval, Cnt), x=annual_interval, fill=annual_interval))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.6, fill= "#BFBEBE")+
+  geom_text(aes(label=Cnt), hjust= -0.12, size=6)+
+  theme_minimal(base_size = 10)+
+  theme(plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 16),
+        axis.title.y = element_text(color = "#231F20", size = 16),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs(title="",
+        y= "",
+        x= "Compensation Intervals")+
+  coord_flip()
+
+## Compensation by Department
+
+dept_comp_n <- employees|>
+  group_by(dept, annual_interval)|>
+  summarise(Count= n())
+
+fig_comp_dept <- ggplot(dept_comp_n, aes(x= annual_interval, y= dept, fill = Count)) +
+  geom_tile() + 
+  geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
+  coord_fixed()+
+  theme_minimal(base_size = 10)+
+  theme(legend.position = "right", 
+        legend.text = element_text(color = "#231F20", size = 14),
+        legend.title = element_text(color = "#231F20", size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.7)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        axis.title.y = element_text(color = "#231F20", size = 14),
+        axis.title.x = element_text(color = "#231F20", size = 14),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs( title = 'The company has a significant number of employees in the middle compensation intervals. **842 (68.28%) of employees earn between 100k-200k** while fewer employees fall into the highest compensation interval. <br />',
+        subtitle = 'Distribution of employees across compensation intervals and departments', 
+       x= 'Compensation Interval', 
+       y= 'Department') +
+  guides(fill = guide_legend(title = "Number of Employees")) +
+  scale_fill_continuous(low = "#F5F5F5", high = "#828282") 
+  
+## Compensation by Role
+
+job_title_comp_n <- employees|>
+  group_by(job_title, annual_interval)|>
+  summarise(Count= n())
+
+fig_comp_role <- ggplot(job_title_comp_n, aes(x= annual_interval, y= job_title, fill = Count)) +
+  geom_tile() + 
+  coord_cartesian()+
+  geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
+  theme_minimal(base_size = 10)+
+  theme(legend.position = "right",
+        legend.text = element_text(color = "#231F20", size = 14),
+        legend.title = element_text(color = "#231F20", size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(2.2)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        axis.title.y = element_text(color = "#231F20", size = 14),
+        axis.title.x = element_text(color = "#231F20", size = 14),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs(title = 'Distribution of employees across compensation intervals and roles',  
+       x= 'Compensation Interval', 
+       y= 'Role') +
+  guides(fill = guide_legend(title = "Number of Employees")) +
+  scale_fill_continuous(low = "#F5F5F5", high = "#828282") 
+ 
+## Compensation by Experience Levels
+
+job_level_comp_n <- employees|>
+  group_by(job_level, annual_interval)|>
+  summarise(Count= n())
+
+fig_comp_expr <- ggplot(job_level_comp_n,aes(x= annual_interval, y= job_level, fill = Count)) +
+  geom_tile() + 
+  geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
+  coord_fixed()+
+  theme_minimal(base_size = 10)+
+  theme(legend.position = "right",
+        legend.text = element_text(color = "#231F20", size = 14),
+        legend.title = element_text(color = "#231F20", size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        axis.title.y = element_text(color = "#231F20", size = 14),
+        axis.title.x = element_text(color = "#231F20", size = 14),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs(title = "Distribution of employees across compensation intervals and experience",  
+       x= "Compensation Interval", 
+       y= "Experience") +
+  guides(fill = guide_legend(title = "Number of Employees")) +
+  scale_fill_continuous(low = "#F5F5F5", high = "#757575") 
+
+
+## Compensation by Generation
+
+comp_gen <- employees|>
+  group_by(generation, annual_interval)|>
+  filter(active == "Yes")|>
+  summarise(Count=n())
+
+fig_comp_generation <- ggplot(comp_gen,aes(x= annual_interval, y= generation, fill = Count)) +
+  geom_tile() + 
+  geom_text(aes(label = Count), vjust = 0.5, hjust = 0.5, size=5)+
+  coord_fixed()+
+  theme_minimal(base_size = 10)+
+  theme(legend.position = "right",
+        legend.text = element_text(color = "#231F20", size = 14),
+        legend.title = element_text(color = "#231F20", size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        axis.title.y = element_text(color = "#231F20", size = 14),
+        axis.title.x = element_text(color = "#231F20", size = 14),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs(title = 'Distribution of employees across compensation intervals and generations.',  
+       x= 'Compensation Interval', 
+       y= 'Generation') +
+  guides(fill = guide_legend(title = "Number of Employees")) +
+  scale_fill_continuous(low = "#F5F5F5", high = "#757575")
+ 
+ 
+## Compensation by Gender
+
+comp_gender <- employees|>
+  group_by(gender, annual_interval)|>
+  filter(active == "Yes")|>
+  summarise(Count=n())
+
+fig_comp_gender <- ggplot(comp_gender,aes(x= annual_interval, y= gender, fill = Count)) +
+  geom_tile() + 
+  geom_text(aes(label = Count), vjust = 0.5, hjust = 0.5, size=5)+
+  coord_fixed()+
+  theme_minimal(base_size = 10)+
+  theme(legend.position = "right",
+        legend.text = element_text(color = "#231F20", size = 14),
+        legend.title = element_text(color = "#231F20", size = 14),
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_text(color = "#231F20", size = 14),
+        axis.title.y = element_text(color = "#231F20", size = 14),
+        axis.title.x = element_text(color = "#231F20", size = 14),
+        panel.background = element_blank(),
+        panel.grid = element_blank())+
+  labs(title = 'Distribution of employees across compensation intervals and gender', 
+       x= 'Compensation Interval', 
+       y= 'Gender') +
+  guides(fill = guide_legend(title = "Employee Count")) +
+  scale_fill_continuous(low = "#F5F5F5", high = "#757575") 
+ 
+          
+## Average (median) Compensation by Role and Department
+
+median_dept <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_title)|>
+  mutate(median=median(annual_comp))
+
+median_dept$highlight <- median_dept$median %in% sort(unique(median_dept$median), decreasing = TRUE)[1:2]
+
+fig_median_role <- ggplot(median_dept, aes(x=reorder(job_title, median), y=median))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.9, fill="#E5E5E5")+
+  geom_text(aes(label=median), hjust=1, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size=14))+
+        labs(x= "",
+             title = "Average (median) Compensation by Department and Role",
+            subtitle = "",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+## Average (median) Compensation by Experience Levels and Department
+
+median_dept_exp <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, job_level)|>
+  mutate(median=median(annual_comp))
+
+median_dept_exp$highlight <- median_dept_exp$median %in% sort(unique(median_dept_exp$median), decreasing = TRUE)[1:2]
+
+fig_median_dept_exp <- ggplot(median_dept_exp, aes(x=reorder(job_level, median), y=median))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.9, fill="#E5E5E5")+
+  geom_text(aes(label=median), hjust=1, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size=14))+
+        labs(x= "",
+             title = "Average (median) Compensation by Department and Experience Levels",
+            subtitle = "",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+
+## Average (median) Compensation by Generation and Department
+
+median_dept_generation <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, generation)|>
+  mutate(median=median(annual_comp))
+
+median_dept_generation$highlight <- median_dept_generation$median %in% sort(unique(median_dept_generation$median), decreasing = TRUE)[1:2]
+
+fig_median_dept_generation <- ggplot(median_dept_generation, aes(x= generation, y=median))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.9, fill="#E5E5E5")+
+  geom_text(aes(label=median), hjust=1, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size=14))+
+        labs(x= "",
+             title = "Average (median) Compensation by Department and Generation",
+            subtitle = "",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+
+## Average (median) Compensation by Gender and Department
+
+median_dept_gender <- employees|>
+  filter(active=="Yes")|>
+  group_by(dept, gender)|>
+  mutate(median=median(annual_comp))
+
+median_dept_gender$highlight <- median_dept_gender$median %in% sort(unique(median_dept_gender$median), decreasing = TRUE)[1:2]
+
+fig_median_dept_gender <- ggplot(median_dept_gender, aes(x= gender, y=median))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.9, fill="#E5E5E5")+
+  geom_text(aes(label=median), hjust=1, size=5)+
+  theme_minimal(base_size = 14)+
+  theme(legend.position = "none",
+        plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
+        plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
+        plot.title.position = "plot",
+        plot.margin = margin(rep(14,4)),
+        axis.text.y = element_text(color = "#231F20", size = 14),
+        axis.text.x = element_blank(),
+        panel.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.grid = element_blank(),
+        strip.text.y = element_text(size=14))+
+        labs(x= "",
+             title = "Average (median) Compensation by Department and Gender",
+            subtitle = "",
+            fill= "",
+            y= "")+
+  coord_flip()+
+  facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
+
+
+## Comparing compensation by Department and Roles
+
+employees$job_title <- gsub(" ", "\n", employees$job_title)
+
+dept_color <- c("Human Resources" = "#E5E5E5", "Research & Development" = "#BFBEBE", "Sales"= "#76787B")
+
+fig_median_dept <- employees$job_title <- gsub(" ", "\n", employees$job_title)
+
+fig_median_dept <- ggplot(employees, aes(x=job_title, y=annual_comp, fill=dept))+
+  geom_boxplot()+
+  theme_minimal()+
+  facet_wrap(~dept, nrow = 3)+
+  theme(legend.position="none",
+        panel.background = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 7))+
+  scale_y_continuous(labels = scales::label_number(scale = 1e-3,                                 suffix = "k",accuracy = 1, big.mark                                = ""),
+                     limits= c(50e3, 250e3), breaks = seq(50e3,                                  250e3, by=50e3))+
+  scale_fill_manual(values = dept_color)+
+   labs(title = "Compensation, Lows, Medians, and Highs by Roles",
+       x= "",
+       y= "Compensation")
+ 
+
+## Comparing Compensation by Experience Levels
+
+fig_median_exp <- ggplot(employees, aes( x= job_level, y=annual_comp, fill=dept))+
+  geom_boxplot()+
+  theme_minimal()+
+  facet_wrap(~dept, nrow = 3)+
+  theme(legend.position="none",
+        panel.background = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 8))+
+  scale_y_continuous(labels = scales::label_number(scale = 1e-3,                                 suffix = "k",accuracy = 1, big.mark                                = ""),
+                     limits= c(50e3, 250e3), breaks = seq(50e3,                                  250e3, by=50e3))+
+  scale_fill_manual(values = dept_color)+
+   labs(title = "Compensation, Lows, Medians, and Highs by Experience",
+       x= "",
+       y= "Compensation")
+
+
+## Comparing Compensation By Generation
+
+fig_median_generation <- ggplot(employees, aes( x= generation, y=annual_comp, fill=dept))+
+  geom_boxplot()+
+ theme_minimal()+
+  facet_wrap(~dept, nrow = 3)+
+  theme(legend.position="none",
+        panel.background = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 8))+
+  scale_y_continuous(labels = scales::label_number(scale = 1e-3,                                 suffix = "k",accuracy = 1, big.mark                                = ""),
+                     limits= c(50e3, 250e3), breaks = seq(50e3,                                  250e3, by=50e3))+
+  scale_fill_manual(values = dept_color)+
+  labs(title = "Compensation, Lows, Medians, and Highs by Generation",
+       y= "Compensation",
+       x= "")
+
+
+## Comparing Compensation by Gender
+
+
+fig_median_gender <- ggplot(employees, aes( x= gender, y=annual_comp, fill=dept))+
+  geom_boxplot()+
+  theme_minimal()+
+  facet_wrap(~dept, nrow = 3)+
+  theme(legend.position="none",
+        panel.background = element_blank(),
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(size = 8))+
+  scale_y_continuous(labels = scales::label_number(scale = 1e-3,                                 suffix = "k",accuracy = 1, big.mark                                = ""),
+                     limits= c(50e3, 250e3), breaks = seq(50e3,                                  250e3, by=50e3))+
+  scale_fill_manual(values = dept_color)+
+  labs(title = "Compensation, Lows, Medians, and Highs by Gender",
+       y= "Compensation",
+       x= "")
+ 
+```
+
+# Last Salary Increase
+
+## Column {.tabset width="40%"}
+
+```{r}
+#| title: No of Employees by Department and Role
+#| fig-width: 12
+#| fig-height: 10
+
+fig_empl_dept
+
+```
+
+```{r}
+#| title: No of Employees by Experience
+#| fig-width: 12
+#| fig-height: 11
+
+fig_empl_dept_exper
+
+```
+
+```{r}
+#| title: No of Employees by Generation
+#| fig-width: 12
+#| fig-height: 11
+
+fig_empl_dept_generation
+
+```
+
+```{r}
+#| title: No of Employees by Gender
+#| fig-width: 12
+#| fig-height: 9
+
+fig_empl_dept_gender
+
+```
+
+## Column {.tabset width="40%"}
+
+```{r}
+#| title: Last Salary increase by Department
+#| fig-width: 12
+#| fig-height: 9
+
+fig_sal_incr_dept
+
+```
+
+```{r}
+#| title: Last Salary increase by Role
+#| fig-width: 12
+#| fig-height: 9 
+
+fig_sal_incr_role
+
+```
+
+```{r}
+#| title: Last Salary increase by Experience 
+#| fig-width: 12
+#| fig-height: 9
+
+fig_sal_incr_exp
+
+```
+
+```{r}
+#| title: Last Salary increase by Generation
+#| fig-width: 12
+#| fig-height: 9
+
+fig_sal_incr_generation
+
+```
+
+```{r}
+#| title: Last Salary increase by Gender
+#| fig-width: 12
+#| fig-height: 9
+
+fig_sal_incr_gender 
+
+```
+
+# Distribution
+
+## Column
+
+```{r}
+#| title: Compensation Distribution
+#| #| fig-width: 18
+#| fig-height: 6
+
+ggplotly(fig_comp_distr_hist)
+
+```
+
+```{r}
+#| title: Number of Employees by Compensation Intervals
+#| #| fig-width: 20
+#| fig-height: 6
+
+fig_comp_distb
+
+```
+
+## Column {.tabset width="40%"}
+
+```{r}
+#| title: Compensation by Department
+#| fig-width: 10
+#| fig-height: 7
+
+fig_comp_dept
+
+```
+
+```{r}
+#| title: Compensation by Role
+#| fig-width: 14
+#| fig-height: 9
+
+fig_comp_role
+```
+
+```{r}
+#| title: Compensation by Experience
+#| fig-width: 10
+#| fig-height: 7
+
+fig_comp_expr
+```
+
+```{r}
+#| title: Compensation by Generation
+#| fig-width: 10
+#| fig-height: 7
+
+fig_comp_generation
+
+```
+
+```{r}
+#| title: Compensation by Gender
+#| fig-width: 10
+#| fig-height: 7
+
+fig_comp_gender
+
+```
+
+# Comparation
+
+## Column {.tabset width="40%"}
+
+```{r}
+#| title: Average Compensation by Department and Role
+#| fig-width: 10
+#| fig-height: 8
+
+fig_median_role
+
+```
+
+```{r}
+#| title: Average Compensation by Experience
+#| fig-width: 10
+#| fig-height: 8
+
+fig_median_dept_exp
+
+```
+
+```{r}
+#| title: Average Compensation by Generation
+#| fig-width: 10
+#| fig-height: 8
+
+fig_median_dept_generation
+
+```
+
+```{r}
+#| title: Average Compensation by Gender
+#| fig-width: 10
+#| fig-height: 8
+
+fig_median_dept_gender
+
+```
+
+## Column {.tabset}
+
+```{r}
+#| title: Compensation by Department and Role
+
+ggplotly(fig_median_dept)
+
+
+```
+
+```{r}
+#| title: Compensation By Experince
+
+
+ggplotly(fig_median_exp)
+
+```
+
+```{r}
+#| title: Compensation By Generation
+
+
+ggplotly(fig_median_generation)
+
+```
+
+```{r}
+#| title: Compensation By Gender
+
+
+ggplotly(fig_median_gender)
+
+```
