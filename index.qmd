@@ -6,7 +6,7 @@ format:
     theme: [litera, custom.scss]
 execute: 
   echo: false
-code-link: true
+
 ---
 
 # About
