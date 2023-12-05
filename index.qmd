@@ -477,7 +477,7 @@ fig_sal_incr_role <- ggplot(role_salary_increase_n, aes(x=prtc, y=job_title, fil
         legend.title = element_text(hjust = 0))+
     labs(y="Role",
          x="Percent of Total",
-         title ="% of Last Salary Increase by Role and Interval Increase",
+         title ="The percentage of employees who received a salary increase for each salary increase interval by role.",
          fill= "Salary Increase Interval")+
   facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
 
@@ -509,7 +509,7 @@ fig_sal_incr_exp <- ggplot(experience_salary_increase_n, aes(x=prtc, y=job_level
         legend.title = element_text(hjust = 0))+
     labs(y="Experience Level",
          x="Percent of Total",
-         title ="% of Last Salary Increase by Experience Level and Interval Increase",
+         title ="The percentage of employees who received a salary increase for each salary increase interval by experience level.",
          fill= "Salary Increase Interval")+
     facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
 
@@ -541,7 +541,7 @@ fig_sal_incr_generation <- ggplot(generation_salary_increase_n, aes(x=prtc, y=ge
         legend.title = element_text(hjust = 0))+
     labs(y="Generation",
          x="Percent of Total",
-         title ="% of Last Salary Increase by Generation and Interval Increase",
+         title ="The percentage of employees who received a salary increase for each salary increase interval by generation.",
          fill= "Salary Increase Interval")+
     facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
 
@@ -573,7 +573,7 @@ fig_sal_incr_gender <- ggplot(gender_salary_increase_n, aes(x=prtc, y=gender, fi
         legend.title = element_text(hjust = 0))+
     labs(y="Gender",
          x="Percent of Total",
-         title ="% of Last Salary Increase by Gender and Interval Increase",
+         title ="The percentage of employees who received a salary increase for each salary increase interval by gender.",
          fill= "Salary Increase Interval")+
   facet_grid(dept ~., scales = "free_y", space = "free_y", switch = "y")
 
