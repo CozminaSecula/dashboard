@@ -26,7 +26,7 @@ How can the company enhance its compensation strategy to ensure fair and effecti
 
 **Aim of this project**
 
-✅ To understand compensation differences across various factors by segmenting employees' data available into different groups such as roles, departments, experience, and demographic groups.
+✅ To investigate how compensation differs based on various factors, such as the role an employee occupies, the department in which they work, the level of experience, and the demographics.
 
 -   This may help to inform the development of a fair and effective compensation strategy.
 
