@@ -591,8 +591,8 @@ fig_comp_distr_hist <- ggplot(employees|>filter(active=="Yes"), aes(x=annual_com
         axis.text.y = element_text(color = "#231F20", size = 14),
         axis.text.x = element_text(color = "#231F20", hjust = 1, size = 14),
         strip.text.x = element_text(face = "bold"), 
-        axis.title.x = element_text(hjust = 0, size = 16),
-        axis.title.y = element_text(vjust = 0, size = 16),
+        axis.title.x = element_text(hjust = 0, size = 14),
+        axis.title.y = element_text(vjust = 0, size = 14),
         legend.title = element_text(hjust = 0))+
   labs(title="",
        x= "Compensation",
@@ -606,11 +606,10 @@ data_annual_interval <- employees|>
   group_by(annual_interval)|>
   summarise(Cnt=n())
 
-data_annual_interval$annual_interval <- reorder(data_annual_interval$annual_interval, -data_annual_interval$Cnt)
 
-fig_comp_distb <- ggplot(data_annual_interval, aes(y=reorder(annual_interval, Cnt), x=annual_interval, fill=annual_interval))+
-  geom_bar(stat = "identity", position = "dodge", width = 0.6, fill= "#BFBEBE")+
-  geom_text(aes(label=Cnt), hjust= -0.12, size=6)+
+fig_comp_distb <- ggplot(data_annual_interval, aes(y= Cnt, x=annual_interval, fill=annual_interval))+
+  geom_bar(stat = "identity", position = "dodge", width = 0.6, fill= "#E5E5E5")+
+  geom_text(aes(label=Cnt), hjust= 1, size=6)+
   theme_minimal(base_size = 10)+
   theme(plot.title = ggtext::element_textbox_simple(margin = margin(0.5, 0, 1, 0, "lines"), lineheight = 1.2, size = rel(1.7)),
         plot.subtitle = ggtext::element_textbox_simple(margin = margin(0, 0, 1, 0, "lines"), lineheight = 1.5, size = rel(1.3)),
@@ -632,7 +631,9 @@ dept_comp_n <- employees|>
   group_by(dept, annual_interval)|>
   summarise(Count= n())
 
-fig_comp_dept <- ggplot(dept_comp_n, aes(x= annual_interval, y= dept, fill = Count)) +
+dept_comp_n$dept <- gsub(" ", "\n", dept_comp_n$dept)
+
+fig_comp_dept <- ggplot(dept_comp_n, aes(x= dept, y= annual_interval, fill = Count)) +
   geom_tile() + 
   geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
   coord_fixed()+
@@ -650,10 +651,10 @@ fig_comp_dept <- ggplot(dept_comp_n, aes(x= annual_interval, y= dept, fill = Cou
         axis.title.x = element_text(color = "#231F20", size = 14),
         panel.background = element_blank(),
         panel.grid = element_blank())+
-  labs( title = 'The company has a significant number of employees in the middle compensation intervals. **842 (68.28%) of employees earn between 100k-200k** while fewer employees fall into the highest compensation interval. <br />',
+  labs( title = 'The company has a significant number of employees in the middle compensation intervals. **842 (68.28%) of employees earn between 100k-200k** while fewer employees fall into the highest compensation interval. <br /><br />',
         subtitle = 'Distribution of employees across compensation intervals and departments', 
-       x= 'Compensation Interval', 
-       y= 'Department') +
+       y= 'Compensation Interval', 
+       x= '') +
   guides(fill = guide_legend(title = "Number of Employees")) +
   scale_fill_continuous(low = "#F5F5F5", high = "#828282") 
   
@@ -663,7 +664,9 @@ job_title_comp_n <- employees|>
   group_by(job_title, annual_interval)|>
   summarise(Count= n())
 
-fig_comp_role <- ggplot(job_title_comp_n, aes(x= annual_interval, y= job_title, fill = Count)) +
+job_title_comp_n$job_title <- gsub(" ", "\n", job_title_comp_n$job_title)
+
+fig_comp_role <- ggplot(job_title_comp_n, aes(x= job_title, y= annual_interval, fill = Count)) +
   geom_tile() + 
   coord_cartesian()+
   geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
@@ -682,8 +685,8 @@ fig_comp_role <- ggplot(job_title_comp_n, aes(x= annual_interval, y= job_title, 
         panel.background = element_blank(),
         panel.grid = element_blank())+
   labs(title = 'Distribution of employees across compensation intervals and roles',  
-       x= 'Compensation Interval', 
-       y= 'Role') +
+       y= 'Compensation Interval', 
+       x= '') +
   guides(fill = guide_legend(title = "Number of Employees")) +
   scale_fill_continuous(low = "#F5F5F5", high = "#828282") 
  
@@ -693,7 +696,7 @@ job_level_comp_n <- employees|>
   group_by(job_level, annual_interval)|>
   summarise(Count= n())
 
-fig_comp_expr <- ggplot(job_level_comp_n,aes(x= annual_interval, y= job_level, fill = Count)) +
+fig_comp_expr <- ggplot(job_level_comp_n,aes(x= job_level, y= annual_interval, fill = Count)) +
   geom_tile() + 
   geom_text(aes(label=Count), vjust= 0.5, hjust= 0.5, size=5)+
   coord_fixed()+
@@ -712,8 +715,8 @@ fig_comp_expr <- ggplot(job_level_comp_n,aes(x= annual_interval, y= job_level, f
         panel.background = element_blank(),
         panel.grid = element_blank())+
   labs(title = "Distribution of employees across compensation intervals and experience",  
-       x= "Compensation Interval", 
-       y= "Experience") +
+       y= "Compensation Interval", 
+       x= "") +
   guides(fill = guide_legend(title = "Number of Employees")) +
   scale_fill_continuous(low = "#F5F5F5", high = "#757575") 
 
@@ -725,7 +728,7 @@ comp_gen <- employees|>
   filter(active == "Yes")|>
   summarise(Count=n())
 
-fig_comp_generation <- ggplot(comp_gen,aes(x= annual_interval, y= generation, fill = Count)) +
+fig_comp_generation <- ggplot(comp_gen,aes(x= generation, y= annual_interval, fill = Count)) +
   geom_tile() + 
   geom_text(aes(label = Count), vjust = 0.5, hjust = 0.5, size=5)+
   coord_fixed()+
@@ -744,8 +747,8 @@ fig_comp_generation <- ggplot(comp_gen,aes(x= annual_interval, y= generation, fi
         panel.background = element_blank(),
         panel.grid = element_blank())+
   labs(title = 'Distribution of employees across compensation intervals and generations.',  
-       x= 'Compensation Interval', 
-       y= 'Generation') +
+       y= 'Compensation Interval', 
+       x= '') +
   guides(fill = guide_legend(title = "Number of Employees")) +
   scale_fill_continuous(low = "#F5F5F5", high = "#757575")
  
@@ -757,7 +760,7 @@ comp_gender <- employees|>
   filter(active == "Yes")|>
   summarise(Count=n())
 
-fig_comp_gender <- ggplot(comp_gender,aes(x= annual_interval, y= gender, fill = Count)) +
+fig_comp_gender <- ggplot(comp_gender,aes(x= gender, y= annual_interval, fill = Count)) +
   geom_tile() + 
   geom_text(aes(label = Count), vjust = 0.5, hjust = 0.5, size=5)+
   coord_fixed()+
@@ -776,8 +779,8 @@ fig_comp_gender <- ggplot(comp_gender,aes(x= annual_interval, y= gender, fill = 
         panel.background = element_blank(),
         panel.grid = element_blank())+
   labs(title = 'Distribution of employees across compensation intervals and gender', 
-       x= 'Compensation Interval', 
-       y= 'Gender') +
+       y= 'Compensation Interval', 
+       x= '') +
   guides(fill = guide_legend(title = "Employee Count")) +
   scale_fill_continuous(low = "#F5F5F5", high = "#757575") 
  
